@@ -36,6 +36,9 @@ namespace Workerman\Protocols {
 use \Workerman\Connection\ConnectionInterface;
 class Hdp implements ProtocolInterface {
     private static function getLen($buf) {
+        if(strlen($buf) <= 4) {
+            return strlen($buf);
+        }
         // The first four bytes determine the length.
         $data = substr($buf, 0, 4);
         $raw = unpack("Nlen", $data);
@@ -53,7 +56,10 @@ class Hdp implements ProtocolInterface {
     }
     public static function decode($buf, ConnectionInterface $conn) {
         // Oh god, this looks so cheaty. Please, pretty please, FIXME.
-        return substr($buf, 4, self::getLen($buf));
+        if(strlen($buf) <= 4)
+            return $buf;
+        else
+            return substr($buf, 4, self::getLen($buf));
     }
 }
 }
