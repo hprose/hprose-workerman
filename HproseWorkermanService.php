@@ -73,15 +73,25 @@ class Hdp implements ProtocolInterface {
  * anything else but WorkermanHprose.
  */
 namespace Bridge {
+if(!class_exists("\Hprose\Base\Service"))
+    require_once __DIR__."/Service.php";
 use \Workerman\Worker;
-class HproseWorkermanService extends \HproseService {
+use \Hprose\Base\Service;
+class HproseWorkermanService extends Service {
     private $worker;
     public $ctx;
     public function __construct(Worker &$worker) {
+        $self = $this;
+        $this->user_fatal_error_handler = function($log) use($self){
+            echo "HPROSE: ".$log;
+            $self->ctx->conn->send($log);
+        };
+        parent::__construct();
         $this->worker = $worker;
         $this->ctx = new \stdClass;
     }
     public function handle(&$conn, $request) {
+        $this->ctx->conn = $conn;
         $conn->send($this->defaultHandle($request, $this->ctx));
     }
 }
