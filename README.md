@@ -31,18 +31,17 @@ Hprose supports many programming languages, for example:
 Through Hprose, You can conveniently and efficiently intercommunicate between those programming languages.
 
 ## Usage
-In order to use Hprose with a Workerman setup, you will need:
-
-- Either [hprose-php](https://github.com/hprose/hprose-php) (pure PHP implementation) OR [hprose-pecl](https://github.com/hprose/hprose-pecl) (Native implementation)
-- [Workerman](https://github.com/walkor/workerman) 3.0 or upwards (I did not test this with lower versions yet)
-
-The `HproseWorkermanService` does not include its dependencies - it is your task to locate and include them accordingly.
+In order to use Hprose with a Workerman setup, you will need to have Composer. With it, the required dependencies are installed.
 
 ### Example: Create a Hprose-based workerman setup
 ```php
 <?php
+# Standalone
 require_once "Workerman/Autoloader.php";
 require_once "Hprose.php"; # If you run the native PECL extension, you won't need this.
+
+# Using composer
+require_once "vendor/autoload.php";
 
 // Create the worker
 $host = "127.0.0.1";
@@ -64,7 +63,9 @@ $hprose->addFunction("hello");
 You now have a Workerman instance with 4 workers listening on your local port `9999`. This server balances requests upon processes and lets you scale your application.
 
 #### Note
-`hprose-php` and `hprose-pecl` **do not** currently have methods to interact with a TCP server. You will need to use NodeJS or another supported language to talk to this server instance. Support for TCP connections is planned and should be available soon!
+`hprose-php` and `hprose-pecl` **do not** currently have methods to interact with a TCP server. You will need to use NodeJS or another supported language to talk to this server instance.
+
+For further information, please consult the `hprose-php` and/or `hprose-pecl` repositories.
 
 ## License
 This code is released by the standard MIT license.

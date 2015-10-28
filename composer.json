@@ -1,0 +1,23 @@
+{
+    "name": "hprose/hprose-workerman",
+    "description": "Hprose integration for Workerman, a multi-process TCP/UDP server architecture.",
+    "version": "1.0.0",
+    "type": "library",
+    "require": {
+        "hprose/hprose": "^1.5",
+        "walkor/workerman": "^3.2.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ingwie Phoenix",
+            "email": "ingwie2000@googlemail.com"
+        }
+    ],
+    "autoload": {
+        "classmap": [
+            "Service.php",
+            "HproseWorkermanService.php"
+        ]
+    }
+}
