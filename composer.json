@@ -1,5 +1,5 @@
 {
-    "name": "hprose/hprose-workerman",
+    "name": "ingwiephoenix/hprose-workerman",
     "description": "Hprose integration for Workerman, a multi-process TCP/UDP server architecture.",
     "version": "1.0.0",
     "type": "library",
