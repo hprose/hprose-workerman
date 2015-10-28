@@ -15,9 +15,9 @@
  * hprose service class for php 5.3+                      *
  * This client version supports the Workerman functions.  *
  *                                                        *
- * LastModified: Apr 6, 2015                              *
+ * LastModified: Oct 28, 2015                             *
  * Author: Kevin Ingwersen <ingwie2000@gmail.com>         *
- *         http://ingwie.me
+ *         http://ingwie.me                               *
  *                                                        *
 \**********************************************************/
 
@@ -25,7 +25,6 @@
 /**
  * @file
  * This file contains functionality to hook into the Workerman system.
- * The user is responsible to include the proper classes (Workerman/Autoloader.php).
  */
 
 /**
@@ -33,35 +32,39 @@
  * It strips or assigns the length as needed.
  */
 namespace Workerman\Protocols {
-use \Workerman\Connection\ConnectionInterface;
-class Hdp implements ProtocolInterface {
-    private static function getLen($buf) {
-        if(strlen($buf) <= 4) {
-            return strlen($buf);
+
+    use \Workerman\Connection\ConnectionInterface as Connection;
+
+    class Hdp implements ProtocolInterface {
+        private static function getLen($buf) {
+            if(strlen($buf) <= 4) {
+                return strlen($buf);
+            }
+            // The first four bytes determine the length.
+            $data = substr($buf, 0, 4);
+            $raw = unpack("Nlen", $data);
+            // The 4 bytes /must/ be present.
+            // Actually, I could also use strpos($buf, "z")+1 for the length... But this has to be tested!
+            return $raw["len"]+4;
         }
-        // The first four bytes determine the length.
-        $data = substr($buf, 0, 4);
-        $raw = unpack("Nlen", $data);
-        // The 4 bytes /must/ be present.
-        // Actually, I could also use strpos($buf, "z")+1 for the length... But this has to be tested!
-        return $raw["len"]+4;
+        public static function input($buf, Connection $conn) {
+            return self::getLen($buf);
+        }
+        public static function encode($buf, Connection $conn) {
+            $len = strlen($buf);
+            $raw = pack("N", $len);
+            return $raw.$buf;
+        }
+        public static function decode($buf, Connection $conn) {
+            // Oh god, this looks so cheaty. Please, pretty please, FIXME.
+            if(strlen($buf) <= 4) {
+                return $buf;
+            } else {
+                return substr($buf, 4, self::getLen($buf));
+            }
+        }
     }
-    public static function input($buf, ConnectionInterface $conn) {
-        return self::getLen($buf);
-    }
-    public static function encode($buf, ConnectionInterface $conn) {
-        $len = strlen($buf);
-        $raw = pack("N", $len);
-        return $raw.$buf;
-    }
-    public static function decode($buf, ConnectionInterface $conn) {
-        // Oh god, this looks so cheaty. Please, pretty please, FIXME.
-        if(strlen($buf) <= 4)
-            return $buf;
-        else
-            return substr($buf, 4, self::getLen($buf));
-    }
-}
+
 }
 
 /**
@@ -73,28 +76,34 @@ class Hdp implements ProtocolInterface {
  * anything else but WorkermanHprose.
  */
 namespace Bridge {
-if(!class_exists("\Hprose\Base\Service"))
-    require_once __DIR__."/Service.php";
-use \Workerman\Worker;
-use \Hprose\Base\Service;
-class HproseWorkermanService extends Service {
-    private $worker;
-    public $ctx;
-    public function __construct(Worker &$worker) {
-        $self = $this;
-        $this->user_fatal_error_handler = function($log) use($self){
-            echo "HPROSE: ".$log;
-            $self->ctx->conn->send($log);
-        };
-        parent::__construct();
-        $this->worker = $worker;
-        $this->ctx = new \stdClass;
+
+    if(!class_exists("\Hprose\Base\Service")) {
+        require_once __DIR__."/Service.php";
     }
-    public function handle(&$conn, $request) {
-        $this->ctx->conn = $conn;
-        $conn->send($this->defaultHandle($request, $this->ctx));
+
+    use \Workerman\Worker;
+    use \Hprose\Base\Service;
+    use \stdClass;
+
+    class HproseWorkermanService extends Service {
+        private $worker;
+        public $ctx;
+        public function __construct(Worker &$worker) {
+            $self = $this;
+            $this->user_fatal_error_handler = function($log) use($self){
+                echo "HPROSE: ".$log;
+                $self->ctx->conn->send($log);
+            };
+            parent::__construct();
+            $this->worker = $worker;
+            $this->ctx = new stdClass;
+        }
+        public function handle(&$conn, $request) {
+            $this->ctx->conn = $conn;
+            $conn->send($this->defaultHandle($request, $this->ctx));
+        }
     }
-}
+
 }
 
 /**
@@ -125,33 +134,38 @@ class HproseWorkermanService extends Service {
  * From now on, there is a server on localhost:9999, ready to take hprose commands!
  */
 namespace Workerman {
-class Hprose extends Worker {
-    // Initialize
-    private $_hprose;
-    public function __construct($host, $port, $opts = array()) {
-        parent::__construct("hdp://{$host}:{$port}", $opts);
-        $this->name = "hprose";
-        $this->_hprose = new \Bridge\HproseWorkermanService($this);
-    }
 
-    public function &hprose() { return $this->_hprose; }
+    use \Workerman\Worker;
+    use \Bridge\HproseWorkermanService as HproseWorkermanService;
 
-    // Setup the methods
-    public function run() {
-        $this->onMessage = array($this, 'onMessage');
-        parent::run();
-    }
+    class Hprose extends Worker {
+        // Initialize
+        private $_hprose;
+        public function __construct($host, $port, $opts = array()) {
+            parent::__construct("hdp://{$host}:{$port}", $opts);
+            $this->name = "hprose";
+            $this->_hprose = new HproseWorkermanService($this);
+        }
 
-    // The handler
-    public function onMessage($conn, $data) {
-        $this->_hprose->handle($conn, $data);
-    }
+        public function &hprose() { return $this->_hprose; }
 
-    // Adding functions to hprose... in a cheaty way.
-    public function add($name, $fnc) {
-        if(is_string($name) && (is_callable($fnc) || is_array($fnc))) {
-            return $this->_hprose->addFunction($fnc, $name);
+        // Setup the methods
+        public function run() {
+            $this->onMessage = array($this, 'onMessage');
+            parent::run();
+        }
+
+        // The handler
+        public function onMessage($conn, $data) {
+            $this->_hprose->handle($conn, $data);
+        }
+
+        // Adding functions to hprose... in a cheaty way.
+        public function add($name, $fnc) {
+            if(is_string($name) && (is_callable($fnc) || is_array($fnc))) {
+                return $this->_hprose->addFunction($fnc, $name);
+            }
         }
     }
-}
+
 }
