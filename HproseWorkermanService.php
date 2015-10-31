@@ -91,7 +91,6 @@ namespace Bridge {
         public function __construct(Worker &$worker) {
             $self = $this;
             $this->user_fatal_error_handler = function($log) use($self){
-                echo "HPROSE: ".$log;
                 $self->ctx->conn->send($log);
             };
             parent::__construct();

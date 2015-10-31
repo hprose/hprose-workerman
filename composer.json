@@ -1,7 +1,7 @@
 {
     "name": "hprose/hprose-workerman",
     "description": "Hprose integration for Workerman, a multi-process TCP/UDP server architecture.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "library",
     "require": {
         "hprose/hprose": "^1.5",
